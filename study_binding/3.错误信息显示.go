@@ -9,6 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	zh_translations "github.com/go-playground/validator/v10/translations/zh"
 	"net/http"
+	"reflect"
 	"strings"
 )
 
@@ -24,22 +25,39 @@ func init() {
 	if ok {
 		_ = zh_translations.RegisterDefaultTranslations(v, trans)
 	}
+
+	v.RegisterTagNameFunc(func(field reflect.StructField) string {
+		label := field.Tag.Get("label")
+		if label == "" {
+			label = field.Name
+		}
+		name := field.Tag.Get("json")
+		return fmt.Sprintf("%s---%s", name, label)
+	})
 }
 
-func ValidateErr(err error) string {
+/*
+{
+	"name": "name参数必填",
+}
+*/
+
+func ValidateErr(err error) any {
 	errs, ok := err.(validator.ValidationErrors)
 	if !ok {
 		return err.Error()
 	}
-	var list []string
+	var m = map[string]any{}
 	for _, e := range errs {
-		list = append(list, e.Translate(trans))
+		msg := e.Translate(trans)
+		_list := strings.Split(msg, "---")
+		m[_list[0]] = _list[1]
 	}
-	return strings.Join(list, ";")
+	return m
 }
 
 type User struct {
-	Name  string `json:"name" binding:"required"`
+	Name  string `json:"name" binding:"required" label:"用户名"`
 	Email string `json:"email" binding:"required,email"`
 }
 
@@ -50,7 +68,11 @@ func main() {
 		var user User
 		if err := c.ShouldBindJSON(&user); err != nil {
 			// 参数验证失败
-			c.String(200, ValidateErr(err))
+			c.JSON(200, map[string]any{
+				"code": 7,
+				"msg":  "验证错误",
+				"data": ValidateErr(err),
+			})
 			return
 		}
 
