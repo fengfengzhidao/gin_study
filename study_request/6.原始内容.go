@@ -11,14 +11,14 @@ import (
 func main() {
 	r := gin.Default()
 	r.POST("", func(c *gin.Context) {
-		byteData, err := io.ReadAll(c.Request.Body)
-		fmt.Println(string(byteData), err)
-		// 读了body之后，body就没了
+		byteData, _ := io.ReadAll(c.Request.Body)
+		fmt.Println(string(byteData))
+		// 读了之后，body就没了，阅后即焚
 		c.Request.Body = io.NopCloser(bytes.NewReader(byteData))
+		fmt.Println(c.Request.Header)
 
 		name := c.PostForm("name")
 		fmt.Println(name)
-
 	})
 	r.Run(":8080")
 }
